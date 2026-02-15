@@ -31,7 +31,7 @@ from pyrogram.errors import (
 # -----------------------
 BOT_TOKEN = os.getenv('BOT_TOKEN', '8160687531:AAEhJb9-G7VdBClGbxc_Zx2Ywegy7M1vUvc')
 ADMIN_ID = int(os.getenv('ADMIN_ID', '8043091004'))
-MONGO_URL = os.getenv('MONGO_URL', 'mongodb+srv://Rexootpbot:tuSJ61tCHDM1jZAP@otpbot.hwmknyh.mongodb.net/?appName=Otpbot')
+MONGO_URL = os.getenv('MONGO_URL', 'mongodb+srv://<db_username>:<db_password>@tgwpidrobot.gqw5lxp.mongodb.net/?appName=Tgwpidrobot')
 API_ID = int(os.getenv('API_ID', '30038466'))
 API_HASH = os.getenv('API_HASH', '5a492a0dfb22b1a0b7caacbf90cbf96e')
 
