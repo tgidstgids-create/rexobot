@@ -31,7 +31,7 @@ from pyrogram.errors import (
 # -----------------------
 BOT_TOKEN = os.getenv('BOT_TOKEN', '7945581080:AAGyFI97QRnwqN26kQuNOoIz1JqCA-AYQbg')
 ADMIN_ID = int(os.getenv('ADMIN_ID', '8043091004'))
-MONGO_URL = os.getenv('MONGO_URL'mongodb+srv://Rexootpbot:tuSJ61tCHDM1jZAP@otpbot.hwmknyh.mongodb.net/?appName=Otpbot')
+MONGO_URL = os.getenv('MONGO_URL', 'mongodb+srv://<db_username>:<db_password>@tgwpidrobot.gqw5lxp.mongodb.net/?appName=Tgwpidrobot')
 API_ID = int(os.getenv('API_ID', '30038466'))
 API_HASH = os.getenv('API_HASH', '5a492a0dfb22b1a0b7caacbf90cbf96e')
 
@@ -484,7 +484,7 @@ def clean_ui_and_send_menu(chat_id, user_id, text=None, markup=None):
                 pass
         
         # Send main menu with proper image
-        caption = "<blockquote>🥂 <b>Welcome To OTP Bot By Rexo </b> 🥂</blockquote>\n" \
+        caption = "<blockquote>🥂 <b>Welcome To OTP Bot By REXO</b> 🥂</blockquote>\n" \
           "<blockquote><b>✨ Features:</b>\n" \
           "• Automatic OTPs 📍\n" \
           "• Easy to Use 🥂🥂\n" \
@@ -1891,7 +1891,7 @@ def process_recharge_amount(msg):
         caption = f"""<blockquote>💳 <b>UPI Payment Details</b>
 
 💰 Amount: {format_currency(amount)}
-📱 UPI ID: <code>chandaliya@fam</code>
+📱 UPI ID: <code>Chandaliya@fam</code>
 </blockquote>
 
 <blockquote>📋 <b>Instructions:</b>
