@@ -807,7 +807,7 @@ Click the button below to join, then press VERIFY ✅</blockquote>"""
                 start(call.message)
                 return
             
-            msg_text = "🛠️ Support: @ADIxH4RE"
+            msg_text = "🛠️ Support: @TmOtpSeller"
             markup = InlineKeyboardMarkup()
             markup.add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
             
