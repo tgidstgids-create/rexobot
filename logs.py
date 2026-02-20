@@ -14,16 +14,20 @@ logger = logging.getLogger(__name__)
 class TelegramLogger:
     """Sends logs to Telegram channel"""
     
-    def __init__(self, bot_token: str, log_channel_id: str):
+    def __init__(self, bot_token: str, log_channel_id: str, support_link: str = "https://t.me/CUTE_OTP_SELLER_BOT", buy_link: str = "https://t.me/CUTE_OTP_SELLER_BOT "):
         """
         Initialize Telegram logger
         
         Args:
             bot_token: Telegram bot token
             log_channel_id: Channel ID where logs will be sent (e.g., "@your_log_channel")
+            support_link: Link for support button
+            buy_link: Link for buy button
         """
         self.bot_token = bot_token
         self.log_channel_id = log_channel_id
+        self.support_link = support_link
+        self.buy_link = buy_link
         self._bot = None
         self._init_bot()
         
@@ -31,7 +35,10 @@ class TelegramLogger:
         """Initialize Telegram bot for logging"""
         try:
             import telebot
+            from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
             self._bot = telebot.TeleBot(self.bot_token)
+            self.InlineKeyboardMarkup = InlineKeyboardMarkup
+            self.InlineKeyboardButton = InlineKeyboardButton
             logger.info(f"✅ Telegram logger initialized for channel: {self.log_channel_id}")
         except ImportError:
             logger.error("❌ Failed to import telebot. Install with: pip install pyTelegramBotAPI")
@@ -40,9 +47,21 @@ class TelegramLogger:
             logger.error(f"❌ Failed to initialize Telegram logger: {e}")
             self._bot = None
     
+    def _get_inline_buttons(self):
+        """Create inline keyboard with Support and Buy buttons"""
+        markup = self.InlineKeyboardMarkup(row_width=2)
+        support_btn = self.InlineKeyboardButton("🆘 Support", url=self.support_link)
+        buy_btn = self.InlineKeyboardButton("🛒 Buy", url=self.buy_link)
+        markup.add(support_btn, buy_btn)
+        return markup
+    
+    def _wrap_in_quote(self, message: str) -> str:
+        """Wrap message in quote/code block"""
+        return f"<blockquote>{message}</blockquote>"
+    
     def send_log(self, message: str, parse_mode: str = "HTML") -> bool:
         """
-        Send log message to Telegram channel
+        Send log message to Telegram channel with buttons
         
         Args:
             message: The message to send
@@ -56,12 +75,19 @@ class TelegramLogger:
             return False
         
         try:
-            # Send message to channel
+            # Wrap message in quote
+            quoted_message = self._wrap_in_quote(message)
+            
+            # Get inline keyboard
+            markup = self._get_inline_buttons()
+            
+            # Send message to channel with buttons
             self._bot.send_message(
                 self.log_channel_id,
-                message,
+                quoted_message,
                 parse_mode=parse_mode,
-                disable_web_page_preview=True
+                disable_web_page_preview=True,
+                reply_markup=markup
             )
             return True
         except Exception as e:
@@ -112,15 +138,14 @@ class TelegramLogger:
         current_time = datetime.now().strftime("%I:%M %p").lstrip("0")  # 9:54 PM format
         
         message = (
-            f"<blockquote>"
             f"<b>🔥 NEW ACCOUNT SOLD! 🔥</b>\n\n"
             f"<b>Category:</b> {country} (Good Quality)\n"
             f"<b>Region:</b> {country}\n"
             f"<b>Number:</b> {formatted_phone}\n"
             f"<b>User:</b> {formatted_user}\n"
             f"<b>Status:</b> Verified & Delivered ✅\n\n"
-            f"<blockquote>🤖 Always use @yourbot</blockquote>"
-            f"<b>Support / Buy</b>"
+            f"<b>Always use</b>\n"
+            f"{current_time}"
         )
         
         return self.send_log(message)
@@ -167,7 +192,6 @@ class TelegramLogger:
         current_time = datetime.now().strftime("%I:%M %p").lstrip("0")
         
         message = (
-            f"<blockquote>"
             f"<b>🔐 OTP RECEIVED! 🔐</b>\n\n"
             f"<b>Category:</b> {country} (Good Quality)\n"
             f"<b>Region:</b> {country}\n"
@@ -175,8 +199,8 @@ class TelegramLogger:
             f"<b>OTP:</b> <code>{otp_code}</code>\n"
             f"<b>User:</b> {formatted_user}\n"
             f"<b>Status:</b> OTP Delivered ✅\n\n"
-            f"<blockquote>🤖 Always use @yourbot</blockquote>" 
-            f"<b>Support / Buy</b>"
+            f"<b>Always use</b>\n"
+            f"{current_time}"
         )
         
         return self.send_log(message)
@@ -229,8 +253,7 @@ class TelegramLogger:
             f"<b>Method:</b> {method}{utr_display}\n"
             f"<b>Status:</b> Balance Updated ✅\n\n"
             f"<b>Always use</b>\n"
-            f"{current_time}\n\n"
-            f"<b>Support / Buy</b>"
+            f"{current_time}"
         )
         
         return self.send_log(message)
@@ -277,8 +300,7 @@ class TelegramLogger:
             f"<b>{title}</b>\n\n"
             f"{chr(10).join(formatted_data)}\n\n"
             f"<b>Always use</b>\n"
-            f"{current_time}\n\n"
-            f"<b>Support / Buy</b>"
+            f"{current_time}"
         )
         
         return self.send_log(message)
@@ -286,10 +308,10 @@ class TelegramLogger:
 # Create global instance
 telegram_logger = None
 
-def init_logger(bot_token: str, log_channel_id: str):
+def init_logger(bot_token: str, log_channel_id: str, support_link: str = "https://t.me/your_support", buy_link: str = "https://t.me/your_bot"):
     """Initialize the global telegram logger"""
     global telegram_logger
-    telegram_logger = TelegramLogger(bot_token, log_channel_id)
+    telegram_logger = TelegramLogger(bot_token, log_channel_id, support_link, buy_link)
     return telegram_logger
 
 def get_logger() -> TelegramLogger:
