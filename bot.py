@@ -29,14 +29,14 @@ from pyrogram.errors import (
 # -----------------------
 # CONFIG
 # -----------------------
-BOT_TOKEN = os.getenv('BOT_TOKEN', '8497264898:AAG5cRnVHZJUva_xZausUElI50BTG9wErAs')
-ADMIN_ID = int(os.getenv('ADMIN_ID', '8481215632'))
-MONGO_URL = os.getenv('MONGO_URL', 'mongodb+srv://TmOtpBot678:V1UfEOWvB06VBtDQ@tmotpbot.puy3dkn.mongodb.net/?appName=TMOTPBOT')
+BOT_TOKEN = os.getenv('BOT_TOKEN', '8133646976:AAHdhU-zPXPljnMZCjga8B2Vg7mlpBJEDDM')
+ADMIN_ID = int(os.getenv('ADMIN_ID', '6424957214'))
+MONGO_URL = os.getenv('MONGO_URL', 'mongodb+srv://Cuteotpbot:<db_password>@cuteotpbot.agk2iht.mongodb.net/?appName=CUTEOTPBOT')
 API_ID = int(os.getenv('API_ID', '30038466'))
 API_HASH = os.getenv('API_HASH', '5a492a0dfb22b1a0b7caacbf90cbf96e')
 
 # MUST JOIN CHANNEL
-MUST_JOIN_CHANNEL = "@TmOtpSell_Channel"
+MUST_JOIN_CHANNEL = "@CUTE_OTP_HUB"
 
 # Referral commission percentage
 REFERRAL_COMMISSION = 1.5  # 1.5% per recharge
@@ -484,7 +484,7 @@ def clean_ui_and_send_menu(chat_id, user_id, text=None, markup=None):
                 pass
         
         # Send main menu with proper image
-        caption = "<blockquote>🥂 <b>Welcome To OTP Bot By ADI</b> 🥂</blockquote>\n" \
+        caption = "<blockquote>🥂 <b>Welcome To OTP Bot By CUTE </b> 🥂</blockquote>\n" \
           "<blockquote><b>✨ Features:</b>\n" \
           "• Automatic OTPs 📍\n" \
           "• Easy to Use 🥂🥂\n" \
@@ -526,7 +526,7 @@ def clean_ui_and_send_menu(chat_id, user_id, text=None, markup=None):
         try:
             sent_msg = bot.send_photo(
                 chat_id,
-                "https://files.catbox.moe/knt119.jpg",
+                "https://files.catbox.moe/amcqan.jpg",
                 caption=text or caption,
                 parse_mode="HTML",
                 reply_markup=markup
@@ -582,7 +582,7 @@ Click the button below to join, then press VERIFY ✅</blockquote>"""
         try:
             bot.send_photo(
                 user_id,
-                "https://files.catbox.moe/knt119.jpg",
+                "https://files.catbox.moe/amcqan.jpg",
                 caption=caption,
                 parse_mode="HTML",
                 reply_markup=markup
@@ -807,7 +807,7 @@ Click the button below to join, then press VERIFY ✅</blockquote>"""
                 start(call.message)
                 return
             
-            msg_text = "🛠️ Support: @TmOtpSeller"
+            msg_text = "🛠️ Support: @ll_NOTTY_CUTE_XD_OP_ll"
             markup = InlineKeyboardMarkup()
             markup.add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
             
@@ -1891,7 +1891,7 @@ def process_recharge_amount(msg):
         caption = f"""<blockquote>💳 <b>UPI Payment Details</b>
 
 💰 Amount: {format_currency(amount)}
-📱 UPI ID: <code>adibhai@fam</code>
+📱 UPI ID: <code>Hetking@fam</code>
 </blockquote>
 
 <blockquote>📋 <b>Instructions:</b>
@@ -1911,7 +1911,7 @@ def process_recharge_amount(msg):
         
         bot.send_photo(
             msg.chat.id,
-            "https://files.catbox.moe/38mgoi.jpg",
+            "https://files.catbox.moe/6x7dky.jpg",
             caption=caption,
             parse_mode="HTML",
             reply_markup=markup
