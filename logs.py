@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class TelegramLogger:
     """Sends logs to Telegram channel"""
     
-    def __init__(self, bot_token: str, log_channel_id: str, support_link: str = "https://t.me/CUTE_OTP_SELLER_BOT", buy_link: str = "https://t.me/CUTE_OTP_SELLER_BOT "):
+    def __init__(self, bot_token: str, log_channel_id: str, support_link: str = "https://t.me/+qJCnoSZgjocyODdl", buy_link: str = "https://t.me/CUTE_OTP_SELLER_BOT "):
         """
         Initialize Telegram logger
         
@@ -144,8 +144,7 @@ class TelegramLogger:
             f"<b>Number:</b> {formatted_phone}\n"
             f"<b>User:</b> {formatted_user}\n"
             f"<b>Status:</b> Verified & Delivered ✅\n\n"
-            f"<b>Always use</b>\n"
-            f"{current_time}"
+            f"<b>Always use @CUTE_OTP_SELLER_BOT</b>\n"
         )
         
         return self.send_log(message)
@@ -199,8 +198,7 @@ class TelegramLogger:
             f"<b>OTP:</b> <code>{otp_code}</code>\n"
             f"<b>User:</b> {formatted_user}\n"
             f"<b>Status:</b> OTP Delivered ✅\n\n"
-            f"<b>Always use</b>\n"
-            f"{current_time}"
+            f"<b>Always use @CUTE_OTP_SELLER_BOT</b>\n"
         )
         
         return self.send_log(message)
@@ -252,8 +250,6 @@ class TelegramLogger:
             f"<b>Amount:</b> ₹{amount:,.0f}\n"
             f"<b>Method:</b> {method}{utr_display}\n"
             f"<b>Status:</b> Balance Updated ✅\n\n"
-            f"<b>Always use</b>\n"
-            f"{current_time}"
         )
         
         return self.send_log(message)
@@ -308,7 +304,7 @@ class TelegramLogger:
 # Create global instance
 telegram_logger = None
 
-def init_logger(bot_token: str, log_channel_id: str, support_link: str = "https://t.me/your_support", buy_link: str = "https://t.me/your_bot"):
+def init_logger(bot_token: str, log_channel_id: str, support_link: str = "https://t.me/+qJCnoSZgjocyODdl", buy_link: str = "https://t.me/CUTE_OTP_SELLER_BOT"):
     """Initialize the global telegram logger"""
     global telegram_logger
     telegram_logger = TelegramLogger(bot_token, log_channel_id, support_link, buy_link)
