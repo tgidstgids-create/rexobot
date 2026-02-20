@@ -112,14 +112,14 @@ class TelegramLogger:
         current_time = datetime.now().strftime("%I:%M %p").lstrip("0")  # 9:54 PM format
         
         message = (
+            f"<blockquote>"
             f"<b>🔥 NEW ACCOUNT SOLD! 🔥</b>\n\n"
             f"<b>Category:</b> {country} (Good Quality)\n"
             f"<b>Region:</b> {country}\n"
             f"<b>Number:</b> {formatted_phone}\n"
             f"<b>User:</b> {formatted_user}\n"
             f"<b>Status:</b> Verified & Delivered ✅\n\n"
-            f"<b>Always use</b>\n"
-            f"{current_time}\n\n"
+            f"<blockquote>🤖 Always use @yourbot</blockquote>"
             f"<b>Support / Buy</b>"
         )
         
@@ -167,6 +167,7 @@ class TelegramLogger:
         current_time = datetime.now().strftime("%I:%M %p").lstrip("0")
         
         message = (
+            f"<blockquote>"
             f"<b>🔐 OTP RECEIVED! 🔐</b>\n\n"
             f"<b>Category:</b> {country} (Good Quality)\n"
             f"<b>Region:</b> {country}\n"
@@ -174,8 +175,7 @@ class TelegramLogger:
             f"<b>OTP:</b> <code>{otp_code}</code>\n"
             f"<b>User:</b> {formatted_user}\n"
             f"<b>Status:</b> OTP Delivered ✅\n\n"
-            f"<b>Always use</b>\n"
-            f"{current_time}\n\n"
+            f"<blockquote>🤖 Always use @yourbot</blockquote>" 
             f"<b>Support / Buy</b>"
         )
         
