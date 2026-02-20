@@ -139,12 +139,12 @@ class TelegramLogger:
         
         message = (
             f"<b>🔥 NEW ACCOUNT SOLD! 🔥</b>\n\n"
-            f"<b>Category:</b> {country} (Good Quality)\n"
-            f"<b>Region:</b> {country}\n"
-            f"<b>Number:</b> {formatted_phone}\n"
-            f"<b>User:</b> {formatted_user}\n"
-            f"<b>Status:</b> Verified & Delivered ✅\n\n"
-            f"<b>Always use @CUTE_OTP_SELLER_BOT</b>\n"
+            f"<b>✚ Category:</b> {country} \n"
+            f"<b>✚ Region:</b> {country}\n"
+            f"<b>✚ Number:</b> {formatted_phone}📞\n"
+            f"<b>✚ User:</b> {formatted_user}👤\n"
+            f"<b>✚ Status:</b> Verified & Delivered✔️ ✅\n\n"
+            f"<b>✦ 🤖 @CUTE_OTP_SELLER_BOT ✦</b>\n"
         )
         
         return self.send_log(message)
@@ -192,13 +192,13 @@ class TelegramLogger:
         
         message = (
             f"<b>🔐 OTP RECEIVED! 🔐</b>\n\n"
-            f"<b>Category:</b> {country} (Good Quality)\n"
-            f"<b>Region:</b> {country}\n"
-            f"<b>Number:</b> {formatted_phone}\n"
-            f"<b>OTP:</b> <code>{otp_code}</code>\n"
-            f"<b>User:</b> {formatted_user}\n"
-            f"<b>Status:</b> OTP Delivered ✅\n\n"
-            f"<b>Always use @CUTE_OTP_SELLER_BOT</b>\n"
+            f"<b>━ Category:</b> {country} \n"
+            f"<b>━ Region:</b> {country}\n"
+            f"<b>━ Number:</b> {formatted_phone}📞\n"
+            f"<b>━ OTP:</b> <code>{otp_code}</code>💬\n"
+            f"<b>━ User:</b> {formatted_user}👤\n"
+            f"<b>━ Status:</b> OTP Delivered ✅\n\n"
+            f"<b> 🤖 @CUTE_OTP_SELLER_BOT</b>\n"
         )
         
         return self.send_log(message)
