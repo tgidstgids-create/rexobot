@@ -143,7 +143,7 @@ class TelegramLogger:
             f"<b>✚ Region:</b> {country}\n"
             f"<b>✚ Number:</b> {formatted_phone}📞\n"
             f"<b>✚ User:</b> {formatted_user}👤\n"
-            f"<b>✚ Status:</b> Verified & Delivered✔️ ✅\n\n"
+            f"<b>✚ Status:</b> Verified & Delivered ✅\n\n"
             f"<b>✦ 🤖 @CUTE_OTP_SELLER_BOT ✦</b>\n"
         )
         
