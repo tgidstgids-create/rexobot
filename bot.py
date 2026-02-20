@@ -35,8 +35,8 @@ from pyrogram.errors import (
 BOT_TOKEN = os.getenv('BOT_TOKEN', '8133646976:AAHdhU-zPXPljnMZCjga8B2Vg7mlpBJEDDM')
 ADMIN_ID = int(os.getenv('ADMIN_ID', '6424957214'))
 MONGO_URL = os.getenv('MONGO_URL', 'mongodb+srv://TmOtpBot678:V1UfEOWvB06VBtDQ@tmotpbot.puy3dkn.mongodb.net/?appName=TMOTPBOT')
-API_ID = int(os.getenv('API_ID', '32681254'))
-API_HASH = os.getenv('API_HASH', '38d2ef101f23e4c06a2bc7d1dce5e18c')
+API_ID = int(os.getenv('API_ID', '36877354'))
+API_HASH = os.getenv('API_HASH', '3d87e9207319d3cf064f26c54579bf33')
 LOG_CHANNEL_ID = os.getenv('LOG_CHANNEL_ID', '@CUTE_OTP_LOGS')  # Log channel
 
 # MUST JOIN CHANNEL
@@ -46,8 +46,8 @@ MUST_JOIN_CHANNEL = "@CUTE_OTP_HUB"
 REFERRAL_COMMISSION = 1.5  # 1.5% per recharge
 
 # Global API Credentials for Pyrogram Login
-GLOBAL_API_ID = 6435225
-GLOBAL_API_HASH = "4e984ea35f854762dcde906d426ce2d"
+GLOBAL_API_ID = 36877354
+GLOBAL_API_HASH = "3d87e9207319d3cf064f26c54579bf33"
 
 # -----------------------
 # INIT LOGGING
