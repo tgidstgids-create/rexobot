@@ -8,7 +8,7 @@ import re
 import threading
 import time
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from pyrogram import Client
 from pyrogram.errors import (
     PhoneNumberInvalid, PhoneCodeInvalid,
@@ -25,16 +25,14 @@ def get_event_loop():
     """Get or create a global event loop"""
     global _global_event_loop
     if _global_event_loop is None:
-        try:
-            _global_event_loop = asyncio.get_running_loop()
-        except RuntimeError:
-            _global_event_loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(_global_event_loop)
+        _global_event_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(_global_event_loop)
     return _global_event_loop
 
-# -----------------------
+# ---------------------------------------------------------------------
 # ASYNC MANAGEMENT
-# -----------------------
+# ---------------------------------------------------------------------
+
 class AsyncManager:
     """Manages async operations in sync context"""
     def __init__(self):
@@ -80,9 +78,10 @@ class AsyncManager:
             raise exception
         return result
 
-# -----------------------
+# ---------------------------------------------------------------------
 # PYROGRAM CLIENT MANAGER (FIXED)
-# -----------------------
+# ---------------------------------------------------------------------
+
 class PyrogramClientManager:
     """Fixed Pyrogram client management without ping issues"""
     def __init__(self, api_id, api_hash):
@@ -190,9 +189,10 @@ class PyrogramClientManager:
             logger.error(f"Error disconnecting client: {e}")
             # Ignore disconnection errors
 
-# -----------------------
+# ---------------------------------------------------------------------
 # ACCOUNT MANAGEMENT FUNCTIONS
-# -----------------------
+# ---------------------------------------------------------------------
+
 async def pyrogram_login_flow_async(login_states, accounts_col, user_id, phone_number, chat_id, message_id, country, api_id, api_hash):
     """Async Pyrogram login flow for adding accounts"""
     try:
@@ -206,7 +206,6 @@ async def pyrogram_login_flow_async(login_states, accounts_col, user_id, phone_n
         
         # Send code
         success, phone_code_hash, error = await manager.send_code(client, phone_number)
-        
         if success:
             # Store client and state
             login_states[user_id].update({
@@ -223,7 +222,6 @@ async def pyrogram_login_flow_async(login_states, accounts_col, user_id, phone_n
         else:
             await manager.safe_disconnect(client)
             return False, error or "Failed to send OTP"
-    
     except Exception as e:
         logger.error(f"Pyrogram login error: {e}")
         return False, str(e)
@@ -280,7 +278,7 @@ async def verify_otp_and_save_async(login_states, accounts_col, user_id, otp_cod
             "api_hash": api_hash
         }
         
-        # Insert account - FIXED: Check if accounts_col is not None
+        # Insert account
         if accounts_col is not None:
             result = accounts_col.insert_one(account_data)
             logger.info(f"Account saved to database with ID: {result.inserted_id}")
@@ -291,13 +289,12 @@ async def verify_otp_and_save_async(login_states, accounts_col, user_id, otp_cod
         await manager.safe_disconnect(client)
         login_states.pop(user_id, None)
         return True, "Account added successfully"
-    
     except Exception as e:
         logger.error(f"OTP verification error: {e}")
         if user_id in login_states and "client" in login_states[user_id]:
             manager = login_states[user_id].get("manager") or PyrogramClientManager(api_id=6435225, api_hash="4e984ea35f854762dcde906dce426c2d")
             await manager.safe_disconnect(login_states[user_id]["client"])
-        login_states.pop(user_id, None)
+            login_states.pop(user_id, None)
         return False, str(e)
 
 async def verify_2fa_password_async(login_states, accounts_col, user_id, password):
@@ -343,7 +340,7 @@ async def verify_2fa_password_async(login_states, accounts_col, user_id, passwor
             "api_hash": api_hash
         }
         
-        # Insert account - FIXED: Check if accounts_col is not None
+        # Insert account
         if accounts_col is not None:
             result = accounts_col.insert_one(account_data)
             logger.info(f"2FA Account saved to database with ID: {result.inserted_id}")
@@ -354,18 +351,115 @@ async def verify_2fa_password_async(login_states, accounts_col, user_id, passwor
         await manager.safe_disconnect(client)
         login_states.pop(user_id, None)
         return True, "Account added successfully"
-    
     except Exception as e:
         logger.error(f"2FA verification error: {e}")
         if user_id in login_states and "client" in login_states[user_id]:
             manager = login_states[user_id].get("manager") or PyrogramClientManager(api_id=6435225, api_hash="4e984ea35f854762dcde906dce426c2d")
             await manager.safe_disconnect(login_states[user_id]["client"])
-        login_states.pop(user_id, None)
+            login_states.pop(user_id, None)
         return False, str(e)
 
-# -----------------------
-# IMPROVED OTP SEARCHER FUNCTION
-# -----------------------
+# ---------------------------------------------------------------------
+# BULK ACCOUNT FUNCTIONS (NEW)
+# ---------------------------------------------------------------------
+
+async def bulk_send_code_async(phone_number, api_id, api_hash, client_name=None):
+    """Send OTP code for bulk processing"""
+    try:
+        manager = PyrogramClientManager(api_id, api_hash)
+        
+        if client_name is None:
+            client_name = f"bulk_{int(time.time())}_{phone_number[-4:]}"
+        
+        client = await manager.create_client(name=client_name)
+        success, phone_code_hash, error = await manager.send_code(client, phone_number)
+        
+        if success:
+            return {
+                "success": True,
+                "client": client,
+                "phone_code_hash": phone_code_hash,
+                "manager": manager
+            }
+        else:
+            await manager.safe_disconnect(client)
+            return {
+                "success": False,
+                "error": error,
+                "client": None
+            }
+    except Exception as e:
+        logger.error(f"Bulk send code error for {phone_number}: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "client": None
+        }
+
+async def bulk_verify_otp_async(client, phone_number, phone_code_hash, otp_code, manager):
+    """Verify OTP for bulk processing"""
+    try:
+        success, status, error = await manager.sign_in_with_otp(
+            client, phone_number, phone_code_hash, otp_code
+        )
+        
+        if success:
+            return {"success": True, "status": "verified"}
+        elif status == "password_required":
+            return {"success": False, "status": "password_required", "error": None}
+        else:
+            return {"success": False, "status": "error", "error": error}
+    except Exception as e:
+        logger.error(f"Bulk OTP verification error: {e}")
+        return {"success": False, "status": "error", "error": str(e)}
+
+async def bulk_verify_password_async(client, password, manager):
+    """Verify 2FA password for bulk processing"""
+    try:
+        success, error = await manager.sign_in_with_password(client, password)
+        return {"success": success, "error": error}
+    except Exception as e:
+        logger.error(f"Bulk password verification error: {e}")
+        return {"success": False, "error": str(e)}
+
+async def bulk_save_account_async(client, phone_number, country, user_id, manager, accounts_col, password=None):
+    """Save account after successful verification (bulk)"""
+    try:
+        # Get session string
+        session_string = await manager.get_session_string(client)
+        if not session_string:
+            return False, "Failed to get session string"
+        
+        # Save account to database
+        account_data = {
+            "country": country,
+            "phone": phone_number,
+            "session_string": session_string,
+            "has_2fa": password is not None,
+            "two_step_password": password,
+            "status": "active",
+            "used": False,
+            "created_at": datetime.utcnow(),
+            "created_by": user_id,
+            "api_id": manager.api_id,
+            "api_hash": manager.api_hash
+        }
+        
+        # Insert account
+        if accounts_col is not None:
+            result = accounts_col.insert_one(account_data)
+            logger.info(f"Bulk account saved: {phone_number} with ID: {result.inserted_id}")
+            return True, "Account saved"
+        else:
+            return False, "Database collection not available"
+    except Exception as e:
+        logger.error(f"Bulk save account error: {e}")
+        return False, str(e)
+
+# ---------------------------------------------------------------------
+# IMPROVED OTP SEARCHER FUNCTION - ALWAYS GETS LATEST OTP
+# ---------------------------------------------------------------------
+
 async def otp_searcher(session_string, api_id=6435225, api_hash="4e984ea35f854762dcde906dce426c2d", last_message_id=None):
     """Search for LATEST OTP in Telegram messages - returns latest OTP only"""
     client = None
@@ -387,42 +481,41 @@ async def otp_searcher(session_string, api_id=6435225, api_hash="4e984ea35f85476
         message_count = 0
         
         try:
-            # Get last 30 messages from "Telegram" chat
-            async for message in client.get_chat_history("Telegram", limit=30):
+            # Get last 50 messages from "Telegram" chat
+            async for message in client.get_chat_history("Telegram", limit=50):
                 message_count += 1
                 if message.text and any(keyword in message.text.lower() for keyword in ["code", "login", "verification", "رمز", "تأكيد"]):
                     # Pattern for OTP codes
                     pattern = r'\b\d{5}\b'  # 5 digit codes
                     matches = re.findall(pattern, message.text)
                     for match in matches:
-                        # Check if this is newer than previous OTP
+                        # Always take the first match (most recent due to chat history order)
                         if message.date:
                             current_time = message.date.timestamp()
-                            if otp_time is None or current_time > otp_time:
+                            # Always update if we find any OTP (take the most recent)
+                            if latest_otp is None or current_time > otp_time:
                                 otp_time = current_time
                                 latest_otp = match
                                 logger.info(f"Found OTP in message: {match} at {message.date}")
-                        break  # First match is enough
-                    if latest_otp:
-                        break  # Found OTP, no need to continue
-            
+                            break  # First match is enough
+                    # Don't break - continue searching for more recent messages
+                    # But if we found one, we'll keep looking for newer ones
+                    
             # If not found in Telegram chat, check 777000
             if not latest_otp:
-                async for message in client.get_chat_history(777000, limit=30):
+                async for message in client.get_chat_history(777000, limit=50):
                     if message.text and any(keyword in message.text.lower() for keyword in ["code", "login", "verification"]):
                         pattern = r'\b\d{5}\b'
                         matches = re.findall(pattern, message.text)
                         for match in matches:
                             if message.date:
                                 current_time = message.date.timestamp()
-                                if otp_time is None or current_time > otp_time:
+                                if latest_otp is None or current_time > otp_time:
                                     otp_time = current_time
                                     latest_otp = match
                                     logger.info(f"Found OTP from 777000: {match} at {message.date}")
-                            break
-                        if latest_otp:
-                            break
-        
+                                break
+                        # Don't break - keep searching
         except Exception as e:
             logger.error(f"Error searching OTP in chat: {e}")
         
@@ -435,7 +528,6 @@ async def otp_searcher(session_string, api_id=6435225, api_hash="4e984ea35f85476
         
         logger.info(f"OTP search completed. Messages checked: {message_count}, Found OTP: {latest_otp}")
         return latest_otp  # Return single latest OTP
-    
     except Exception as e:
         logger.error(f"OTP searcher error: {e}")
         if client:
@@ -445,15 +537,16 @@ async def otp_searcher(session_string, api_id=6435225, api_hash="4e984ea35f85476
                 pass
         return None
 
-# -----------------------
+# ---------------------------------------------------------------------
 # LOGOUT SESSION FUNCTION (FIXED)
-# -----------------------
+# ---------------------------------------------------------------------
+
 async def logout_session_async(session_id, user_id, otp_sessions_col, accounts_col, orders_col):
     """Logout from session and mark order as completed"""
     try:
         from bson import ObjectId
         
-        # FIXED: Check if collections are not None
+        # Check if collections are not None
         if otp_sessions_col is None:
             return False, "otp_sessions_col is None"
         
@@ -476,7 +569,7 @@ async def logout_session_async(session_id, user_id, otp_sessions_col, accounts_c
             }}
         )
         
-        # FIXED: Update order status only if orders_col is not None
+        # Update order status only if orders_col is not None
         if orders_col is not None:
             orders_col.update_one(
                 {"session_id": session_id},
@@ -487,7 +580,7 @@ async def logout_session_async(session_id, user_id, otp_sessions_col, accounts_c
                 }}
             )
         
-        # FIXED: Mark account as used only if accounts_col is not None
+        # Mark account as used only if accounts_col is not None
         account_id = session_data.get("account_id")
         if account_id and accounts_col is not None:
             try:
@@ -520,29 +613,31 @@ async def logout_session_async(session_id, user_id, otp_sessions_col, accounts_c
         
         logger.info(f"User {user_id} logged out from session {session_id}")
         return True, "Logged out successfully from Telegram"
-    
     except Exception as e:
         logger.error(f"Logout error: {e}")
         return False, str(e)
 
-# -----------------------
-# GET LATEST OTP FUNCTION
-# -----------------------
+# ---------------------------------------------------------------------
+# GET LATEST OTP FUNCTION - ALWAYS FETCHES NEW OTP
+# ---------------------------------------------------------------------
+
 async def get_latest_otp_async(session_string, api_id=6435225, api_hash="4e984ea35f854762dcde906dce426c2d"):
-    """Get the latest OTP from session (for Get OTP button)"""
+    """Get the latest OTP from session (for Get OTP button) - ALWAYS FETCH NEW"""
     try:
         logger.info(f"Getting latest OTP for session...")
+        # Always fetch new OTP, don't use cached
         latest_otp = await otp_searcher(session_string, api_id, api_hash)
         return latest_otp
     except Exception as e:
         logger.error(f"Error getting latest OTP: {e}")
         return None
 
-# -----------------------
-# GET OTP FROM DATABASE FUNCTION (IMPORTANT)
-# -----------------------
+# ---------------------------------------------------------------------
+# GET OTP FROM DATABASE FUNCTION WITH TIMESTAMP CHECK
+# ---------------------------------------------------------------------
+
 async def get_otp_from_database_async(session_id, otp_sessions_col):
-    """Get OTP directly from database (fastest method for Get OTP button)"""
+    """Get OTP directly from database with timestamp check"""
     try:
         if otp_sessions_col is None:
             logger.error("otp_sessions_col is None in get_otp_from_database_async")
@@ -550,10 +645,17 @@ async def get_otp_from_database_async(session_id, otp_sessions_col):
         
         # Directly fetch from database
         session_data = otp_sessions_col.find_one({"session_id": session_id})
-        if session_data and session_data.get("otp_code"):
-            otp_code = session_data.get("otp_code")
-            logger.info(f"OTP fetched from database for session {session_id}: {otp_code}")
-            return otp_code
+        if session_data and session_data.get("last_otp"):
+            otp_code = session_data.get("last_otp")
+            otp_time = session_data.get("last_otp_time")
+            
+            # Check if OTP is from last 5 minutes (300 seconds)
+            if otp_time and (datetime.utcnow() - otp_time).total_seconds() < 300:
+                logger.info(f"Recent OTP fetched from database for session {session_id}: {otp_code}")
+                return otp_code
+            else:
+                logger.info(f"OTP in database is too old for session {session_id}, will fetch new")
+                return None
         else:
             logger.warning(f"No OTP found in database for session {session_id}")
             return None
@@ -561,9 +663,10 @@ async def get_otp_from_database_async(session_id, otp_sessions_col):
         logger.error(f"Error getting OTP from database: {e}")
         return None
 
-# -----------------------
+# ---------------------------------------------------------------------
 # SIMPLE OTP MONITORING (NON-AUTOMATIC)
-# -----------------------
+# ---------------------------------------------------------------------
+
 async def simple_otp_monitor(session_string, session_id, max_wait_time=1800, api_id=6435225, api_hash="4e984ea35f854762dcde906dce426c2d"):
     """Simple OTP monitoring without automatic notifications"""
     start_time = time.time()
@@ -580,9 +683,10 @@ async def simple_otp_monitor(session_string, session_id, max_wait_time=1800, api
     logger.info(f"Simple OTP monitoring ended for session {session_id}")
     return None
 
-# -----------------------
+# ---------------------------------------------------------------------
 # SYNC WRAPPERS FOR ASYNC FUNCTIONS
-# -----------------------
+# ---------------------------------------------------------------------
+
 class AccountManager:
     """Main account manager class"""
     def __init__(self, api_id=6435225, api_hash="4e984ea35f854762dcde906dce426c2d"):
@@ -596,7 +700,8 @@ class AccountManager:
         try:
             return self.async_manager.run_async(
                 pyrogram_login_flow_async(
-                    login_states, accounts_col, user_id, phone_number, chat_id, message_id, country, self.api_id, self.api_hash
+                    login_states, accounts_col, user_id, phone_number,
+                    chat_id, message_id, country, self.api_id, self.api_hash
                 )
             )
         except Exception as e:
@@ -623,8 +728,58 @@ class AccountManager:
             logger.error(f"2FA verification error: {e}")
             return False, str(e)
     
+    # -----------------------------------------------------------------
+    # BULK ACCOUNT SYNC WRAPPERS (NEW)
+    # -----------------------------------------------------------------
+    
+    def bulk_send_code_sync(self, phone_number, api_id=None, api_hash=None):
+        """Sync wrapper for bulk send code"""
+        try:
+            api_id = api_id or self.api_id
+            api_hash = api_hash or self.api_hash
+            return self.async_manager.run_async(
+                bulk_send_code_async(phone_number, api_id, api_hash)
+            )
+        except Exception as e:
+            logger.error(f"Bulk send code error: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def bulk_verify_otp_sync(self, client, phone_number, phone_code_hash, otp_code, manager):
+        """Sync wrapper for bulk OTP verification"""
+        try:
+            return self.async_manager.run_async(
+                bulk_verify_otp_async(client, phone_number, phone_code_hash, otp_code, manager)
+            )
+        except Exception as e:
+            logger.error(f"Bulk OTP verification error: {e}")
+            return {"success": False, "status": "error", "error": str(e)}
+    
+    def bulk_verify_password_sync(self, client, password, manager):
+        """Sync wrapper for bulk password verification"""
+        try:
+            return self.async_manager.run_async(
+                bulk_verify_password_async(client, password, manager)
+            )
+        except Exception as e:
+            logger.error(f"Bulk password verification error: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def bulk_save_account_sync(self, client, phone_number, country, user_id, manager, accounts_col, password=None):
+        """Sync wrapper for bulk save account"""
+        try:
+            return self.async_manager.run_async(
+                bulk_save_account_async(client, phone_number, country, user_id, manager, accounts_col, password)
+            )
+        except Exception as e:
+            logger.error(f"Bulk save account error: {e}")
+            return False, str(e)
+    
+    # -----------------------------------------------------------------
+    # EXISTING SYNC WRAPPERS
+    # -----------------------------------------------------------------
+    
     def get_latest_otp_sync(self, session_string):
-        """Sync wrapper to get latest OTP from session"""
+        """Sync wrapper to get latest OTP from session - ALWAYS FETCHES NEW"""
         try:
             return self.async_manager.run_async(
                 get_latest_otp_async(session_string, self.api_id, self.api_hash)
@@ -634,7 +789,7 @@ class AccountManager:
             return None
     
     def get_otp_from_database_sync(self, session_id, otp_sessions_col):
-        """Sync wrapper to get OTP from database"""
+        """Sync wrapper to get OTP from database with timestamp check"""
         try:
             return self.async_manager.run_async(
                 get_otp_from_database_async(session_id, otp_sessions_col)
@@ -663,9 +818,10 @@ class AccountManager:
             logger.error(f"Simple monitoring error: {e}")
             return None
 
-# -----------------------
+# ---------------------------------------------------------------------
 # EXPORT EVERYTHING
-# -----------------------
+# ---------------------------------------------------------------------
+
 __all__ = [
     'AsyncManager',
     'PyrogramClientManager',
@@ -674,5 +830,10 @@ __all__ = [
     'get_latest_otp_async',
     'get_otp_from_database_async',
     'logout_session_async',
-    'simple_otp_monitor'
+    'simple_otp_monitor',
+    # Bulk functions
+    'bulk_send_code_async',
+    'bulk_verify_otp_async',
+    'bulk_verify_password_async',
+    'bulk_save_account_async'
 ]
