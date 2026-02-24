@@ -46,8 +46,8 @@ from pyrogram.errors import (
 BOT_TOKEN = os.getenv('BOT_TOKEN', '8133646976:AAHdhU-zPXPljnMZCjga8B2Vg7mlpBJEDDM')
 ADMIN_ID = int(os.getenv('ADMIN_ID', '7907303088'))
 MONGO_URL = os.getenv('MONGO_URL', 'mongodb+srv://TmOtpBot678:V1UfEOWvB06VBtDQ@tmotpbot.puy3dkn.mongodb.net/?appName=TMOTPBOT')
-API_ID = int(os.getenv('API_ID', '32681254'))
-API_HASH = os.getenv('API_HASH', '38d2ef101f23e4c06a2bc7d1dce5e18c')
+API_ID = int(os.getenv('API_ID', '36766460'))
+API_HASH = os.getenv('API_HASH', '2fec19e770253750d844020f25f0855e')
 
 # MUST JOIN CHANNELS - TWO CHANNELS
 MUST_JOIN_CHANNEL_1 = "@CUTE_OTP_HUB"
@@ -59,8 +59,8 @@ LOG_CHANNEL_ID = "-1003715790166"
 REFERRAL_COMMISSION = 1.5
 
 # Global API Credentials for Pyrogram Login
-GLOBAL_API_ID = 32681254
-GLOBAL_API_HASH = "38d2ef101f23e4c06a2bc7d1dce5e18c"
+GLOBAL_API_ID = 36766460
+GLOBAL_API_HASH = "2fec19e770253750d844020f25f0855e"
 
 # ---------------------------------------------------------------------
 # INIT
