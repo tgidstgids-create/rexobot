@@ -554,7 +554,7 @@ def clean_ui_and_send_menu(chat_id, user_id, text=None, markup=None):
             )
             # Row 4: 1 button
             markup.add(
-                InlineKeyboardButton(" support ", callback_data=support")
+                 InlineKeyboardButton("🛠️ Support", callback_data="support")
             )
             # Row 5: 1 button (only for admin)
             if is_admin(user_id):
