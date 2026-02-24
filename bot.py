@@ -2615,7 +2615,7 @@ def process_recharge_amount(msg):
         caption = f"""<blockquote>💳 <b>UPI Payment Details</b> 
 
 💰 Amount: {format_currency(amount)}
-📱 UPI ID: ansh122012@fam
+📱 UPI ID: Hetking@fam
 
 📋 Instructions:
 1. Scan QR code OR send {format_currency(amount)} to above UPI
