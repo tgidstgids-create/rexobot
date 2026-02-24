@@ -43,24 +43,24 @@ from pyrogram.errors import (
 # CONFIG
 # ---------------------------------------------------------------------
 
-BOT_TOKEN = os.getenv('BOT_TOKEN', '8532247286:AAEbjih4UwSdUd2NpxOEja_TMKA0LAlzeKo')
-ADMIN_ID = int(os.getenv('ADMIN_ID', '8248143402'))
-MONGO_URL = os.getenv('MONGO_URL', 'fgdgfdgsgsfdgg')
-API_ID = int(os.getenv('API_ID', '30038466'))
-API_HASH = os.getenv('API_HASH', '5a492a0dfb22b1a0b7caacbf90cbf96e')
+BOT_TOKEN = os.getenv('BOT_TOKEN', '8133646976:AAHdhU-zPXPljnMZCjga8B2Vg7mlpBJEDDM')
+ADMIN_ID = int(os.getenv('ADMIN_ID', '6424957214'))
+MONGO_URL = os.getenv('MONGO_URL', 'mongodb+srv://TmOtpBot678:V1UfEOWvB06VBtDQ@tmotpbot.puy3dkn.mongodb.net/?appName=TMOTPBOT')
+API_ID = int(os.getenv('API_ID', '32681254'))
+API_HASH = os.getenv('API_HASH', '38d2ef101f23e4c06a2bc7d1dce5e18c')
 
 # MUST JOIN CHANNELS - TWO CHANNELS
-MUST_JOIN_CHANNEL_1 = "@tanjirootpxproofs"
-MUST_JOIN_CHANNEL_2 = "@tanjiroxstocks"
+MUST_JOIN_CHANNEL_1 = "@CUTE_OTP_HUB"
+MUST_JOIN_CHANNEL_2 = "@CUTEE_OTP_LOGS"
 # LOG CHANNEL
-LOG_CHANNEL_ID = "-1003384073842"
+LOG_CHANNEL_ID = "-1003715790166"
 
 # Referral commission percentage
 REFERRAL_COMMISSION = 1.5
 
 # Global API Credentials for Pyrogram Login
-GLOBAL_API_ID = 6435225
-GLOBAL_API_HASH = "4e984ea35f854762dcde906dce426c2d"
+GLOBAL_API_ID = 32681254
+GLOBAL_API_HASH = "38d2ef101f23e4c06a2bc7d1dce5e18c"
 
 # ---------------------------------------------------------------------
 # INIT
@@ -518,7 +518,7 @@ def clean_ui_and_send_menu(chat_id, user_id, text=None, markup=None):
         
         # Main menu caption with expandable blockquotes
         caption = (
-            "🥂 <b>Welcome To Otp Bot By 𝐒 ᴜ ᴋ ᴜ ɴ ᴀ</b> 🥂\n"
+            "🥂 <b>Welcome To Otp Bot By 𝐂 ᴜ ᴛ ᴇ</b> 🥂\n"
             "<blockquote expandable>\n"
             "- Automatic OTPs 📍\n"
             "- Easy to Use 🥂🥂\n"
@@ -1042,7 +1042,7 @@ Click the buttons below to join both channels, then press VERIFY ✅"""
                 start(call.message)
                 return
             
-            msg_text = "🛠️ Support: @AM_SUKUNA23"
+            msg_text = "🛠️ Support: @CUTE_SUPPORTT"
             markup = InlineKeyboardMarkup()
             markup.add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
             
@@ -2634,7 +2634,7 @@ def process_recharge_amount(msg):
         
         bot.send_photo(
             msg.chat.id,
-            "https://ibb.co/qMn0zs4G",
+            "https://ibb.co/Kx2RyM2t",
             caption=caption,
             parse_mode="HTML",
             reply_markup=markup
