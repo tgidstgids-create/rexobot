@@ -86,6 +86,7 @@ try:
     banned_users_col = db['banned_users']
     transactions_col = db['transactions']
     coupons_col = db['coupons']
+    admins_col = db['admins']  # New collection for multiple admins
     logger.info("✅ MongoDB connected successfully")
 except Exception as e:
     logger.error(f"❌ MongoDB connection failed: {e}")
@@ -110,6 +111,8 @@ edit_price_state = {}
 coupon_state = {}
 recharge_method_state = {}
 upi_payment_states = {}
+admin_add_state = {}  # For /addadmin flow
+admin_remove_state = {}  # For /removeadmin flow
 
 # add this line for bordcast 
 IS_BROADCASTING = False
@@ -119,6 +122,9 @@ login_states = {}
 
 # BULK ADD STATES
 bulk_add_states = {}
+
+# Recharge approval tracking
+recharge_approvals = {}  # Track who approved/rejected which recharge
 
 # Import account management
 try:
@@ -130,16 +136,438 @@ except ImportError as e:
     account_manager = None
 
 # Import logging module
-from logs import init_logger, log_purchase_async, log_otp_received_async, log_recharge_approved_async
-
-init_logger(BOT_TOKEN, LOG_CHANNEL_ID)
-logger.info(f"✅ Telegram logger initialized for channel: {LOG_CHANNEL_ID}")
-
+try:
+    from logs import init_logger, log_purchase_async, log_otp_received_async, log_recharge_approved_async
+    init_logger(BOT_TOKEN, LOG_CHANNEL_ID)
+    logger.info(f"✅ Telegram logger initialized for channel: {LOG_CHANNEL_ID}")
+except ImportError as e:
+    logger.error(f"❌ Failed to load logging module: {e}")
 
 # Async manager for background tasks
 async_manager = None
 if account_manager:
     async_manager = account_manager.async_manager
+
+# Initialize admin in database
+def init_admin():
+    """Initialize the first admin in database"""
+    try:
+        # Check if admins collection exists and has any admins
+        if 'admins' not in db.list_collection_names():
+            db.create_collection('admins')
+        
+        admin_count = admins_col.count_documents({})
+        if admin_count == 0:
+            # Add the main admin
+            admin_data = {
+                "user_id": ADMIN_ID,
+                "added_by": "SYSTEM",
+                "added_at": datetime.utcnow(),
+                "is_super_admin": True
+            }
+            admins_col.insert_one(admin_data)
+            logger.info(f"✅ Main admin {ADMIN_ID} added to database")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize admin: {e}")
+
+# Call init_admin
+init_admin()
+
+# ---------------------------------------------------------------------
+# ADMIN MANAGEMENT FUNCTIONS
+# ---------------------------------------------------------------------
+def get_admin_info(user_id):
+    """Get admin info by user ID"""
+    try:
+        # Check if it's main admin
+        if str(user_id) == str(ADMIN_ID):
+            user = users_col.find_one({"user_id": user_id})
+            return {
+                "user_id": user_id,
+                "is_super_admin": True,
+                "name": user.get("name", "Main Admin") if user else "Main Admin"
+            }
+        
+        # Check in admins collection
+        admin = admins_col.find_one({"user_id": user_id})
+        if admin:
+            user = users_col.find_one({"user_id": user_id})
+            admin["name"] = user.get("name", "Admin") if user else "Admin"
+            return admin
+        return None
+    except Exception as e:
+        logger.error(f"Error in get_admin_info: {e}")
+        return None
+        
+def is_admin(user_id):
+    """Check if user is an admin"""
+    try:
+        # Check if it's the main admin
+        if str(user_id) == str(ADMIN_ID):
+            return True
+        
+        # Check in admins collection
+        admin = admins_col.find_one({"user_id": user_id})
+        return admin is not None
+    except:
+        return False
+
+def is_super_admin(user_id):
+    """Check if user is the main super admin"""
+    return str(user_id) == str(ADMIN_ID)
+
+def add_admin(user_id, added_by):
+    """Add a new admin (max 5 admins)"""
+    try:
+        # Check if already admin
+        if is_admin(user_id):
+            return False, "User is already an admin"
+        
+        # Count current admins (excluding super admin if counting separately)
+        admin_count = admins_col.count_documents({})
+        if admin_count >= 5:
+            return False, "Maximum 5 admins reached"
+        
+        # Add new admin
+        admin_data = {
+            "user_id": user_id,
+            "added_by": added_by,
+            "added_at": datetime.utcnow(),
+            "is_super_admin": False
+        }
+        admins_col.insert_one(admin_data)
+        
+        # Get user info
+        user = users_col.find_one({"user_id": user_id})
+        username = user.get("username", "No username") if user else "Unknown"
+        
+        return True, f"✅ Admin added successfully!"
+    except Exception as e:
+        logger.error(f"Error adding admin: {e}")
+        return False, f"Error: {str(e)}"
+
+def remove_admin(user_id, removed_by):
+    """Remove an admin"""
+    try:
+        # Check if user is admin
+        admin = admins_col.find_one({"user_id": user_id})
+        if not admin:
+            return False, "User is not an admin"
+        
+        # Check if trying to remove super admin
+        if str(user_id) == str(ADMIN_ID):
+            return False, "Cannot remove main admin"
+        
+        # Remove admin
+        result = admins_col.delete_one({"user_id": user_id})
+        
+        if result.deleted_count > 0:
+            return True, f"✅ Admin removed successfully!"
+        else:
+            return False, "Failed to remove admin"
+    except Exception as e:
+        logger.error(f"Error removing admin: {e}")
+        return False, f"Error: {str(e)}"
+
+def get_all_admins():
+    """Get list of all admins"""
+    try:
+        admins = list(admins_col.find({}))
+        # Also include main admin if not in collection
+        main_admin_exists = any(str(a.get("user_id")) == str(ADMIN_ID) for a in admins)
+        
+        admin_list = []
+        
+        # Add main admin first
+        if not main_admin_exists:
+            admin_list.append({
+                "user_id": ADMIN_ID,
+                "username": "Main Admin",
+                "name": "Main Admin",
+                "added_at": datetime.utcnow(),
+                "added_by": "SYSTEM",
+                "is_super_admin": True
+            })
+        
+        # Add other admins
+        for admin in admins:
+            user_id = admin["user_id"]
+            user = users_col.find_one({"user_id": user_id})
+            username = user.get("username", "No username") if user else "Unknown"
+            name = user.get("name", "Unknown") if user else "Unknown"
+            
+            admin_list.append({
+                "user_id": user_id,
+                "username": username,
+                "name": name,
+                "added_at": admin.get("added_at"),
+                "added_by": admin.get("added_by"),
+                "is_super_admin": admin.get("is_super_admin", False)
+            })
+        return admin_list
+    except Exception as e:
+        logger.error(f"Error getting admins: {e}")
+        return []
+
+def get_admin_count():
+    """Get total number of admins"""
+    try:
+        return admins_col.count_documents({}) + 1  # +1 for main admin
+    except:
+        return 1
+
+# ---------------------------------------------------------------------
+# ADMIN COMMAND HANDLERS
+# ---------------------------------------------------------------------
+
+@bot.message_handler(commands=['addadmin'])
+def add_admin_command(msg):
+    """Add a new admin - Only main admin can use"""
+    user_id = msg.from_user.id
+    
+    # Only main admin can add admins
+    if not is_super_admin(user_id):
+        bot.reply_to(msg, "❌ Sirf main admin hi addadmin use kar sakta hai!")
+        return
+    
+    # Start the add admin flow
+    admin_add_state[user_id] = {"step": "waiting_user_id"}
+    
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton("❌ Cancel", callback_data="cancel_add_admin"))
+    
+    bot.reply_to(
+        msg,
+        "👤 **Add New Admin**\n\n"
+        "Please enter the User ID of the person you want to make admin:\n\n"
+        "📝 User ID milne ke liye:\n"
+        "• User ko /start karna hoga bot mein\n"
+        "• Ya admin panel se user search karo\n\n"
+        "Example: `123456789`",
+        parse_mode="Markdown",
+        reply_markup=markup
+    )
+
+@bot.message_handler(commands=['removeadmin'])
+def remove_admin_command(msg):
+    """Remove an admin - Only main admin can use"""
+    user_id = msg.from_user.id
+    
+    # Only main admin can remove admins
+    if not is_super_admin(user_id):
+        bot.reply_to(msg, "❌ Sirf main admin hi removeadmin use kar sakta hai!")
+        return
+    
+    # Get list of admins
+    admins = get_all_admins()
+    
+    if len(admins) <= 1:  # Only main admin
+        bot.reply_to(
+            msg,
+            "📋 **Admin List**\n\n"
+            "Koi aur admin nahi hai remove karne ke liye.\n\n"
+            f"👑 Main Admin: `{ADMIN_ID}`",
+            parse_mode="Markdown"
+        )
+        return
+    
+    # Show list of admins
+    admin_list_text = "📋 **Existing Admins:**\n\n"
+    for admin in admins:
+        if not admin.get("is_super_admin", False):
+            admin_list_text += f"• `{admin['user_id']}` - {admin['name']}\n"
+    
+    admin_list_text += "\nPlease enter the User ID of the admin you want to remove:"
+    
+    admin_remove_state[user_id] = {"step": "waiting_user_id"}
+    
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton("❌ Cancel", callback_data="cancel_remove_admin"))
+    
+    bot.reply_to(
+        msg,
+        admin_list_text,
+        parse_mode="Markdown",
+        reply_markup=markup
+    )
+
+@bot.callback_query_handler(func=lambda call: call.data in ["cancel_add_admin", "cancel_remove_admin"])
+def handle_cancel_admin(call):
+    user_id = call.from_user.id
+    
+    if call.data == "cancel_add_admin":
+        if user_id in admin_add_state:
+            del admin_add_state[user_id]
+        bot.edit_message_text(
+            "❌ Add admin cancelled.",
+            call.message.chat.id,
+            call.message.message_id
+        )
+    elif call.data == "cancel_remove_admin":
+        if user_id in admin_remove_state:
+            del admin_remove_state[user_id]
+        bot.edit_message_text(
+            "❌ Remove admin cancelled.",
+            call.message.chat.id,
+            call.message.message_id
+        )
+
+@bot.message_handler(func=lambda m: m.from_user.id in admin_add_state and admin_add_state[m.from_user.id]["step"] == "waiting_user_id")
+def handle_add_admin_userid(msg):
+    user_id = msg.from_user.id
+    
+    try:
+        target_user_id = int(msg.text.strip())
+        
+        # Check if trying to add self
+        if target_user_id == user_id:
+            bot.reply_to(msg, "❌ Aap khudko admin nahi bana sakte! Aap already main admin ho.")
+            del admin_add_state[user_id]
+            return
+        
+        # Check if user exists
+        user = users_col.find_one({"user_id": target_user_id})
+        if not user:
+            bot.reply_to(
+                msg,
+                f"❌ User `{target_user_id}` database mein nahi mila.\n\n"
+                f"Pehle user ko /start karwaiye bot mein.",
+                parse_mode="Markdown"
+            )
+            del admin_add_state[user_id]
+            return
+        
+        # Check if already admin
+        if is_admin(target_user_id):
+            bot.reply_to(
+                msg,
+                f"⚠️ User `{target_user_id}` already admin hai!",
+                parse_mode="Markdown"
+            )
+            del admin_add_state[user_id]
+            return
+        
+        # Check max admins
+        admin_count = admins_col.count_documents({})
+        if admin_count >= 5:
+            bot.reply_to(
+                msg,
+                "❌ Maximum 5 admins ho chuke hain. Pehle kisi admin ko remove karo.",
+                parse_mode="Markdown"
+            )
+            del admin_add_state[user_id]
+            return
+        
+        # Add admin
+        success, message = add_admin(target_user_id, user_id)
+        
+        if success:
+            # Get updated admin count
+            new_count = admins_col.count_documents({})
+            
+            bot.reply_to(
+                msg,
+                f"✅ **Admin Added Successfully!**\n\n"
+                f"👤 User ID: `{target_user_id}`\n"
+                f"👤 Name: {user.get('name', 'Unknown')}\n"
+                f"📊 Total Admins: {new_count + 1}/6 (Main Admin + {new_count})\n\n"
+                f"Ab ye admin panel access kar sakte hain!",
+                parse_mode="Markdown"
+            )
+            
+            # Notify new admin
+            try:
+                bot.send_message(
+                    target_user_id,
+                    f"🎉 **Congratulations! You've Been Promoted to Admin!**\n\n"
+                    f"Ab aap admin panel use kar sakte hain:\n"
+                    f"• Recharge Approve/Reject\n"
+                    f"• Add/Remove Countries\n"
+                    f"• Add Accounts\n"
+                    f"• Broadcast Messages\n"
+                    f"• And more!\n\n"
+                    f"Admin panel ke liye /start karo.",
+                    parse_mode="Markdown"
+                )
+            except:
+                bot.reply_to(msg, "⚠️ New admin ko notification nahi bhej sakte (unhone bot block kar diya hai)")
+        else:
+            bot.reply_to(msg, f"❌ {message}")
+        
+        del admin_add_state[user_id]
+        
+    except ValueError:
+        bot.reply_to(msg, "❌ Invalid User ID. Sirf numbers daalo.")
+    except Exception as e:
+        logger.error(f"Add admin error: {e}")
+        bot.reply_to(msg, f"❌ Error: {str(e)}")
+        del admin_add_state[user_id]
+
+@bot.message_handler(func=lambda m: m.from_user.id in admin_remove_state and admin_remove_state[m.from_user.id]["step"] == "waiting_user_id")
+def handle_remove_admin_userid(msg):
+    user_id = msg.from_user.id
+    
+    try:
+        target_user_id = int(msg.text.strip())
+        
+        # Check if trying to remove self
+        if target_user_id == user_id:
+            bot.reply_to(msg, "❌ Aap khudko remove nahi kar sakte! Aap main admin ho.")
+            del admin_remove_state[user_id]
+            return
+        
+        # Check if user is admin
+        if not is_admin(target_user_id):
+            bot.reply_to(
+                msg,
+                f"❌ User `{target_user_id}` admin nahi hai!",
+                parse_mode="Markdown"
+            )
+            del admin_remove_state[user_id]
+            return
+        
+        # Remove admin
+        success, message = remove_admin(target_user_id, user_id)
+        
+        if success:
+            # Get user info
+            user = users_col.find_one({"user_id": target_user_id})
+            name = user.get('name', 'Unknown') if user else 'Unknown'
+            
+            # Get updated admin count
+            new_count = admins_col.count_documents({})
+            
+            bot.reply_to(
+                msg,
+                f"✅ **Admin Removed Successfully!**\n\n"
+                f"👤 User ID: `{target_user_id}`\n"
+                f"👤 Name: {name}\n"
+                f"📊 Remaining Admins: {new_count + 1}/6 (Main Admin + {new_count})\n\n"
+                f"Ab ye admin nahi rahe.",
+                parse_mode="Markdown"
+            )
+            
+            # Notify removed admin
+            try:
+                bot.send_message(
+                    target_user_id,
+                    f"⚠️ **Your Admin Access Has Been Removed**\n\n"
+                    f"Aap ab admin nahi rahe. Bot use karne ke liye /start karo.",
+                    parse_mode="Markdown"
+                )
+            except:
+                pass
+        else:
+            bot.reply_to(msg, f"❌ {message}")
+        
+        del admin_remove_state[user_id]
+        
+    except ValueError:
+        bot.reply_to(msg, "❌ Invalid User ID. Sirf numbers daalo.")
+    except Exception as e:
+        logger.error(f"Remove admin error: {e}")
+        bot.reply_to(msg, f"❌ Error: {str(e)}")
+        del admin_remove_state[user_id]
 
 # ---------------------------------------------------------------------
 # UTILITY FUNCTIONS - UPDATED FOR TWO CHANNELS
@@ -210,12 +638,6 @@ def format_currency(x):
 
 def get_available_accounts_count(country):
     return accounts_col.count_documents({"country": country, "status": "active", "used": False})
-
-def is_admin(user_id):
-    try:
-        return str(user_id) == str(ADMIN_ID)
-    except:
-        return False
 
 def is_user_banned(user_id):
     banned = banned_users_col.find_one({"user_id": user_id, "status": "active"})
@@ -472,6 +894,115 @@ def get_coupon_status(code):
     }
 
 # ---------------------------------------------------------------------
+# ENHANCED RECHARGE APPROVAL FUNCTIONS
+# ---------------------------------------------------------------------
+
+def process_recharge_approval(admin_id, req_id, action):
+    """Process recharge approval/rejection with tracking"""
+    try:
+        # Get recharge request
+        req = recharges_col.find_one({"req_id": req_id})
+        if not req:
+            return False, "Request not found", None
+        
+        # Check if already processed
+        if req.get("status") != "pending":
+            return False, f"Request already {req.get('status')}", None
+        
+        # Get admin info
+        admin_info = get_admin_info(admin_id)
+        admin_name = f"Admin {admin_id}"
+        if admin_info:
+            user = users_col.find_one({"user_id": admin_id})
+            if user:
+                admin_name = user.get("name", f"Admin {admin_id}")
+        
+        user_target = req.get("user_id")
+        amount = float(req.get("amount", 0))
+        
+        # Track this approval
+        approval_key = f"{req_id}_{action}"
+        
+        # Check if another admin already processed this (via tracking)
+        if approval_key in recharge_approvals:
+            prev_admin = recharge_approvals[approval_key]
+            return False, f"Already {action}ed by {prev_admin['admin_name']}", None
+        
+        if action == "approve":
+            # Add balance to user
+            add_balance(user_target, amount)
+            
+            # Update recharge status
+            recharges_col.update_one(
+                {"req_id": req_id},
+                {"$set": {
+                    "status": "approved", 
+                    "processed_at": datetime.utcnow(), 
+                    "processed_by": admin_id,
+                    "processed_by_name": admin_name
+                }}
+            )
+            
+            # Log approval
+            try:
+                from logs import log_recharge_approved_async
+                log_recharge_approved_async(
+                    user_id=user_target,
+                    amount=amount,
+                    method=req.get("method", "UPI"),
+                    utr=req.get("utr")
+                )
+            except:
+                pass
+            
+            # Add referral commission if applicable
+            user_data = users_col.find_one({"user_id": user_target})
+            if user_data and user_data.get("referred_by"):
+                add_referral_commission(user_data["referred_by"], amount, req)
+            
+            # Mark this approval in tracking
+            recharge_approvals[approval_key] = {
+                "admin_id": admin_id,
+                "admin_name": admin_name,
+                "timestamp": datetime.utcnow()
+            }
+            
+            return True, f"✅ Recharge approved by {admin_name}", {
+                "admin_name": admin_name,
+                "admin_id": admin_id,
+                "action": "approved"
+            }
+            
+        else:  # cancel/reject
+            # Update recharge status
+            recharges_col.update_one(
+                {"req_id": req_id},
+                {"$set": {
+                    "status": "cancelled", 
+                    "processed_at": datetime.utcnow(), 
+                    "processed_by": admin_id,
+                    "processed_by_name": admin_name
+                }}
+            )
+            
+            # Mark this rejection in tracking
+            recharge_approvals[approval_key] = {
+                "admin_id": admin_id,
+                "admin_name": admin_name,
+                "timestamp": datetime.utcnow()
+            }
+            
+            return True, f"❌ Recharge rejected by {admin_name}", {
+                "admin_name": admin_name,
+                "admin_id": admin_id,
+                "action": "rejected"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error in recharge approval: {e}")
+        return False, f"Error: {str(e)}", None
+
+# ---------------------------------------------------------------------
 # UI HELPER FUNCTIONS - FIXED
 # ---------------------------------------------------------------------
 
@@ -518,7 +1049,7 @@ def clean_ui_and_send_menu(chat_id, user_id, text=None, markup=None):
         
         # Main menu caption with expandable blockquotes
         caption = (
-            "🥂 <b>Welcome To Otp Bot By 𝐂 ᴜ ᴛ ᴇ</b> 🥂\n"
+            "🥂 <b>Welcome To Otp Bot By 𝐂 ᴜ ᴛ ᴇ </b> 🥂\n"
             "<blockquote expandable>\n"
             "- Automatic OTPs 📍\n"
             "- Easy to Use 🥂🥂\n"
@@ -554,7 +1085,7 @@ def clean_ui_and_send_menu(chat_id, user_id, text=None, markup=None):
             )
             # Row 4: 1 button
             markup.add(
-                 InlineKeyboardButton("🛠️ Support", callback_data="support")
+                InlineKeyboardButton("🛠️ Support", callback_data="support")
             )
             # Row 5: 1 button (only for admin)
             if is_admin(user_id):
@@ -1042,7 +1573,7 @@ Click the buttons below to join both channels, then press VERIFY ✅"""
                 start(call.message)
                 return
             
-            msg_text = "Owner : @HET_BRAND_OP"
+            msg_text = "🛠️ Support: @CUTE_HELPERR"
             markup = InlineKeyboardMarkup()
             markup.add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
             
@@ -1324,67 +1855,35 @@ Click the buttons below to join both channels, then press VERIFY ✅"""
                 parts = data.split("|")
                 action = parts[0]
                 req_id = parts[1] if len(parts) > 1 else None
-                req = recharges_col.find_one({"req_id": req_id}) if req_id else None
                 
-                if not req:
-                    bot.answer_callback_query(call.id, "❌ Request not found", show_alert=True)
-                    return
+                # Process approval/rejection
+                success, message, admin_info = process_recharge_approval(user_id, req_id, 
+                                                                        "approve" if action == "approve_rech" else "reject")
                 
-                user_target = req.get("user_id")
-                amount = float(req.get("amount", 0))
-                
-                if action == "approve_rech":
-                    add_balance(user_target, amount)
-                    recharges_col.update_one(
-                        {"req_id": req_id},
-                        {"$set": {"status": "approved", "processed_at": datetime.utcnow(), "processed_by": ADMIN_ID}}
-                    )
-                    bot.answer_callback_query(call.id, "✅ Recharge approved", show_alert=True)
+                if success:
+                    bot.answer_callback_query(call.id, message, show_alert=True)
                     
-                    try:
-                        from logs import log_recharge_approved_async
-                        log_recharge_approved_async(
-                            user_id=user_target,
-                            amount=amount,
-                            method="UPI",
-                            utr=req.get("utr")
-                        )
-                    except:
-                        pass
-                    
-                    user_data = users_col.find_one({"user_id": user_target})
-                    if user_data and user_data.get("referred_by"):
-                        add_referral_commission(user_data["referred_by"], amount, req)
-                    
-                    kb = InlineKeyboardMarkup()
-                    kb.add(InlineKeyboardButton("🛒 Buy Account Now", callback_data="buy_account"))
-                    
+                    # Delete the original admin message
                     try:
                         bot.delete_message(call.message.chat.id, call.message.message_id)
                     except:
                         pass
+                    
+                    # Send new message showing which admin approved/rejected
+                    admin_action_msg = f"✅ **Recharge Request Processed**\n\n"
+                    admin_action_msg += f"📋 Request ID: `{req_id}`\n"
+                    admin_action_msg += f"👤 Processed by: {admin_info['admin_name']}\n"
+                    admin_action_msg += f"🆔 Admin ID: `{admin_info['admin_id']}`\n"
+                    admin_action_msg += f"📌 Action: **{admin_info['action'].upper()}**\n"
+                    admin_action_msg += f"⏰ Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}"
                     
                     bot.send_message(
-                        user_target,
-                        f"✅ Your recharge of {format_currency(amount)} has been approved and added to your wallet.\n\n"
-                        f"💰 <b>New Balance: {format_currency(get_balance(user_target))}</b>\n\n"
-                        f"Click below to buy accounts:",
-                        parse_mode="HTML",
-                        reply_markup=kb
+                        call.message.chat.id,
+                        admin_action_msg,
+                        parse_mode="Markdown"
                     )
                 else:
-                    recharges_col.update_one(
-                        {"req_id": req_id},
-                        {"$set": {"status": "cancelled", "processed_at": datetime.utcnow(), "processed_by": ADMIN_ID}}
-                    )
-                    bot.answer_callback_query(call.id, "❌ Recharge cancelled", show_alert=True)
-                    
-                    try:
-                        bot.delete_message(call.message.chat.id, call.message.message_id)
-                    except:
-                        pass
-                    
-                    bot.send_message(user_target, f"❌ Your recharge of {format_currency(amount)} was not received.")
+                    bot.answer_callback_query(call.id, f"❌ {message}", show_alert=True)
             else:
                 bot.answer_callback_query(call.id, "❌ Unauthorized", show_alert=True)
         
@@ -2634,7 +3133,7 @@ def process_recharge_amount(msg):
         
         bot.send_photo(
             msg.chat.id,
-            "https://ibb.co/Kx2RyM2t",
+            "https://ibb.co/b5KF1cft",
             caption=caption,
             parse_mode="HTML",
             reply_markup=markup
@@ -2707,6 +3206,9 @@ def handle_screenshot_input(msg):
             {"$set": {"req_id": req_id}}
         )
         
+        # Get all admins to send notification
+        all_admins = get_all_admins()
+        
         admin_caption = f"""📋 **UPI Payment Request** 
 
 👤 User: {user_id}
@@ -2723,13 +3225,19 @@ def handle_screenshot_input(msg):
             InlineKeyboardButton("❌ Reject", callback_data=f"cancel_rech|{req_id}")
         )
         
-        bot.send_photo(
-            ADMIN_ID,
-            screenshot_file_id,
-            caption=admin_caption,
-            parse_mode="HTML",
-            reply_markup=markup
-        )
+        # Send to all admins
+        for admin in all_admins:
+            admin_user_id = admin["user_id"]
+            try:
+                bot.send_photo(
+                    admin_user_id,
+                    screenshot_file_id,
+                    caption=admin_caption,
+                    parse_mode="HTML",
+                    reply_markup=markup
+                )
+            except Exception as e:
+                logger.error(f"Failed to send recharge notification to admin {admin_user_id}: {e}")
         
         bot.send_message(
             msg.chat.id,
@@ -3282,6 +3790,7 @@ def show_admin_panel(chat_id):
     total_orders = orders_col.count_documents({})
     banned_users = banned_users_col.count_documents({"status": "active"})
     active_countries = countries_col.count_documents({"status": "active"})
+    total_admins = get_admin_count()
     
     text = (
         f"👑 **Admin Panel**\n\n"
@@ -3291,7 +3800,8 @@ def show_admin_panel(chat_id):
         f"• Total Users: {total_users}\n"
         f"• Total Orders: {total_orders}\n"
         f"• Banned Users: {banned_users}\n"
-        f"• Active Countries: {active_countries}\n\n"
+        f"• Active Countries: {active_countries}\n"
+        f"• Total Admins: {total_admins}/6\n\n"
         f"🛠️ **Management Tools:**"
     )
     
@@ -3316,6 +3826,17 @@ def show_admin_panel(chat_id):
         InlineKeyboardButton("🌍 Manage Countries", callback_data="manage_countries"),
         InlineKeyboardButton("🎟 Coupon Management", callback_data="admin_coupon_menu")
     )
+    
+    # Show admin list for main admin
+    if is_super_admin(user_id):
+        admins = get_all_admins()
+        admin_text = "\n\n👥 **Current Admins:**\n"
+        for admin in admins:
+            if admin.get("is_super_admin", False):
+                admin_text += f"👑 Main: `{admin['user_id']}`\n"
+            else:
+                admin_text += f"👤 Admin: `{admin['user_id']}`\n"
+        text += admin_text
     
     sent_msg = bot.send_message(chat_id, text, reply_markup=markup, parse_mode="Markdown")
     user_last_message[user_id] = sent_msg.message_id
@@ -4141,6 +4662,16 @@ def restart_bot(message):
 def chat_handler(msg):
     user_id = msg.from_user.id
     
+    # Check if user is in admin add flow
+    if user_id in admin_add_state:
+        handle_add_admin_userid(msg)
+        return
+    
+    # Check if user is in admin remove flow
+    if user_id in admin_remove_state:
+        handle_remove_admin_userid(msg)
+        return
+    
     if user_id == ADMIN_ID and user_id in admin_deduct_state:
         pass
     
@@ -4294,6 +4825,12 @@ if __name__ == "__main__":
         logger.info("✅ Coupon indexes created")
     except Exception as e:
         logger.error(f"❌ Failed to create coupon indexes: {e}")
+    
+    try:
+        admins_col.create_index([("user_id", 1)], unique=True)
+        logger.info("✅ Admin indexes created")
+    except Exception as e:
+        logger.error(f"❌ Failed to create admin indexes: {e}")
     
     try:
         bot.infinity_polling(timeout=60, long_polling_timeout=60)
