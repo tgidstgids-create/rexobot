@@ -379,4 +379,4 @@ __all__ = [
     'log_recharge_approved_async',
     'log_withdrawal_approved_async',
     'log_custom_async'
-                ]
+    ]
