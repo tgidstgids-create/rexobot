@@ -29,7 +29,7 @@ class TelegramLogger:
         
         # Custom emoji IDs - fixed as requested
         self.TOP_EMOJI = "6120916334873153887"      # Upar wala emoji
-        self.BOTTOM_EMOJI = "6170205375267082717"    # Niche wala emoji
+        self.BOTTOM_EMOJI = "5210932667452768696"    # Niche wala emoji
         
         self._test_connection()
     
